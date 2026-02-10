@@ -1,0 +1,4 @@
+# Required for image processing
+opencv-python
+# Required for numerical operations
+numpy

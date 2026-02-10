@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DQ7 Lucky Panel Memo v12</title>
+    <style>
+        :root {
+            --bg-color: #0f0f12;
+            --panel-color: #2c2c2e;
+            --accent-color: #ffd60a;
+            --cell-size-pc: 90px;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: sans-serif; background: var(--bg-color); color: white;
+            text-align: center; margin: 0; padding: 10px;
+            touch-action: manipulation; user-select: none;
+            overflow-x: hidden;
+        }
+
+        .ui-switcher {
+            position: fixed; bottom: 10px; right: 10px; z-index: 100;
+            background: #444; color: #ccc; border: 1px solid #666;
+            padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer;
+        }
+
+        .mode-selector { margin-bottom: 12px; display: flex; justify-content: center; gap: 5px; }
+        .mode-btn { padding: 8px 12px; font-size: 14px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; }
+        .mode-btn.active { border-color: var(--accent-color); background: #443a00; color: var(--accent-color); font-weight: bold; }
+
+        /* グリッドコンテナの修正 */
+        .grid-container {
+            display: grid; /* inline-gridから変更 */
+            justify-content: center;
+            gap: 6px;
+            padding: 10px;
+            background: #1c1c1e; border-radius: 12px; border: 2px solid #444;
+            margin: 0 auto 15px;
+            width: fit-content;
+            max-width: 100%; /* 画面幅を超えない */
+        }
+
+        .cell {
+            width: var(--cell-size-pc);
+            aspect-ratio: 1 / 1; /* 正方形を維持 */
+            background: var(--panel-color); border: 2px solid #555;
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-size: 32px; font-weight: bold; position: relative;
+        }
+
+        /* モバイルUI時のパネルサイズ強制調整 */
+        body.is-mobile .cell {
+            /* 5列(辛口)を基準に、余白を考慮して算出 */
+            width: calc((100vw - 60px) / 5);
+            max-width: 75px;
+            font-size: 6vw; /* 文字サイズも画面幅に連動 */
+        }
+        @media screen and (min-width: 600px) {
+            body.is-mobile .cell { font-size: 28px; }
+        }
+
+        .cell.selected {
+            border-color: var(--accent-color);
+            outline: 3px solid var(--accent-color);
+            outline-offset: -3px;
+            background: #3d3d40;
+            z-index: 5;
+            box-shadow: 0 0 15px rgba(255, 214, 10, 0.6);
+        }
+        .cell.matched { opacity: 0.15; filter: grayscale(100%); border-style: dotted; }
+
+        /* カラー定義 */
+        .color-1 { background-color: #600; border-color: #ff453a; }
+        .color-2 { background-color: #060; border-color: #32d74b; }
+        .color-3 { background-color: #006; border-color: #0a84ff; }
+        .color-4 { background-color: #650; border-color: #ffd60a; }
+        .color-5 { background-color: #506; border-color: #bf5af2; }
+        .color-6 { background-color: #056; border-color: #64d2ff; }
+        .color-7 { background-color: #630; border-color: #ff9f0a; }
+        .color-8 { background-color: #444; border-color: #ebebf5; }
+        .color-9 { background-color: #2c3e50; border-color: #bdc3c7; }
+        .color-up { background-color: #2c3e50; border-color: #8e44ad; color: #fff; box-shadow: inset 0 0 5px #8e44ad; }
+        .color-chance { background-color: #000; border-color: #ffd60a; color: #ffd60a; }
+        .color-shuffle { background-color: #300; border-color: #ff453a; color: #ff453a; }
+
+        .palette {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+            max-width: 500px; margin: 0 auto 15px; padding: 0 5px;
+        }
+        body.is-mobile .palette {
+            grid-template-columns: repeat(4, 1fr);
+            width: 100%;
+        }
+
+        .p-item {
+            height: 50px; display: flex; align-items: center; justify-content: center;
+            background: #3a3a3c; border: 1px solid #666; border-radius: 8px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+        }
+        .p-item.disabled { opacity: 0.1; pointer-events: none; }
+
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .ctrl-btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: bold; font-size: 14px; }
+        .btn-match { background: #32d74b; color: #000; }
+        .btn-reset { background: #ff453a; color: white; }
+    </style>
+</head>
+<body id="main-body">
+
+    <div id="ui-mode-info" class="ui-switcher" onclick="toggleUIMode()">UI: Auto</div>
+
+    <div class="mode-selector">
+        <button class="mode-btn" id="btn-easy" onclick="changeMode('easy')">甘口</button>
+        <button class="mode-btn" id="btn-normal" onclick="changeMode('normal')">中辛</button>
+        <button class="mode-btn" id="btn-hard" onclick="changeMode('hard')">辛口</button>
+    </div>
+
+    <div class="grid-container" id="grid"></div>
+    <div class="palette" id="palette"></div>
+
+    <div class="controls">
+        <button class="ctrl-btn btn-match" onclick="toggleMatched()">消込(M)</button>
+        <button class="ctrl-btn btn-reset" onclick="resetAll()">全リセット</button>
+    </div>
+
+    <script>
+        let currentMode = 'easy';
+        let selectedCells = [];
+        let isMobileUI = false;
+        let draggedCell = null;
+
+        const config = { easy: { r: 3, c: 4 }, normal: { r: 4, c: 4 }, hard: { r: 4, c: 5 } };
+        const items = [
+            { id: '1', label: '1', cls: 'color-1' }, { id: '2', label: '2', cls: 'color-2' },
+            { id: '3', label: '3', cls: 'color-3' }, { id: '4', label: '4', cls: 'color-4' },
+            { id: '5', label: '5', cls: 'color-5' }, { id: '6', label: '6', cls: 'color-6' },
+            { id: '7', label: '7', cls: 'color-7' }, { id: '8', label: '8', cls: 'color-8' },
+            { id: '9', label: '9', cls: 'color-9' }, { id: 'U', label: 'UP', cls: 'color-up' },
+            { id: 'S', label: '✨', cls: 'color-chance' }, { id: 'D', label: '🔀', cls: 'color-shuffle' }
+        ];
+
+        function detectDevice() {
+            setUIMode(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+        }
+
+        function setUIMode(isMobile) {
+            isMobileUI = isMobile;
+            document.getElementById('main-body').classList.toggle('is-mobile', isMobile);
+            document.getElementById('ui-mode-info').innerText = isMobile ? "UI: Mobile" : "UI: PC";
+            initGrid();
+        }
+
+        function toggleUIMode() { setUIMode(!isMobileUI); }
+
+        function initPalette() {
+            const p = document.getElementById('palette');
+            p.innerHTML = '';
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `p-item ${item.cls}`;
+                div.id = `p-${item.id}`;
+                div.innerText = item.label;
+                div.onclick = () => setItems(item.id);
+                p.appendChild(div);
+            });
+            const del = document.createElement('div');
+            del.className = 'p-item'; del.innerText = '消';
+            del.onclick = () => setItems('');
+            p.appendChild(del);
+        }
+
+        function changeMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.id === 'btn-' + mode));
+            initGrid();
+        }
+
+        function initGrid() {
+            const { r, c } = config[currentMode];
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
+            selectedCells = [];
+            for (let i = 0; i < r * c; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.onclick = () => handleSelect(cell);
+                if (!isMobileUI) {
+                    cell.draggable = true;
+                    setupPCEvents(cell);
+                }
+                gridEl.appendChild(cell);
+            }
+            updatePaletteStatus();
+        }
+
+        function handleSelect(cell) {
+            if (cell.classList.contains('selected')) {
+                cell.classList.remove('selected');
+                selectedCells = selectedCells.filter(c => c !== cell);
+                return;
+            }
+            if (selectedCells.length >= 2) selectedCells.shift().classList.remove('selected');
+            cell.classList.add('selected');
+            selectedCells.push(cell);
+
+            if (selectedCells.length === 2 && (isMobileUI || (selectedCells[0].innerText !== '' && selectedCells[1].innerText !== ''))) {
+                const c1 = selectedCells[0], c2 = selectedCells[1];
+                if (c1.innerText !== '' && c2.innerText !== '') swapCells(c1, c2);
+            }
+        }
+
+        function setupPCEvents(cell) {
+            cell.ondragstart = () => draggedCell = cell;
+            cell.ondragover = (e) => { e.preventDefault(); cell.classList.add('drag-over'); };
+            cell.ondragleave = () => cell.classList.remove('drag-over');
+            cell.ondrop = (e) => {
+                e.preventDefault();
+                cell.classList.remove('drag-over');
+                if (draggedCell && draggedCell !== cell) swapCells(draggedCell, cell);
+            };
+        }
+
+        function swapCells(c1, c2) {
+            const tText = c1.innerText, tId = c1.dataset.id, tClass = c1.className;
+            c1.innerText = c2.innerText; c1.dataset.id = c2.dataset.id || ''; c1.className = c2.className;
+            c2.innerText = tText; c2.dataset.id = tId || ''; c2.className = tClass;
+            clearSelection();
+            updatePaletteStatus();
+        }
+
+        function setItems(id) {
+            if (selectedCells.length === 0) return;
+            const item = items.find(i => i.id === id);
+            selectedCells.forEach(cell => {
+                cell.innerText = item ? item.label : '';
+                cell.dataset.id = id || '';
+                cell.className = 'cell ' + (item ? item.cls : '');
+            });
+            clearSelection();
+            updatePaletteStatus();
+        }
+
+        function updatePaletteStatus() {
+            const counts = {};
+            document.querySelectorAll('.cell').forEach(c => {
+                if (c.dataset.id) counts[c.dataset.id] = (counts[c.dataset.id] || 0) + 1;
+            });
+            items.forEach(item => {
+                const btn = document.getElementById(`p-${item.id}`);
+                if (btn) btn.classList.toggle('disabled', counts[item.id] >= 2);
+            });
+        }
+
+        function toggleMatched() {
+            selectedCells.forEach(cell => cell.classList.toggle('matched'));
+            clearSelection();
+        }
+
+        function clearSelection() {
+            selectedCells.forEach(c => c.classList.remove('selected'));
+            selectedCells = [];
+        }
+
+        function resetAll() { if (confirm('リセットしますか？')) initGrid(); }
+
+        window.onkeydown = (e) => {
+            if (selectedCells.length === 0) return;
+            const key = e.key.toLowerCase();
+            if (key >= '1' && key <= '9') setItems(key);
+            else if (['0', 'delete', 'backspace'].includes(key)) setItems('');
+            else if (['u','s','d','m'].includes(key)) {
+                if(key === 'm') toggleMatched();
+                else setItems(key.toUpperCase());
+            }
+        };
+
+        detectDevice();
+        initPalette();
+        changeMode('easy');
+    </script>
+</body>
+</html>
