@@ -4,6 +4,7 @@
 # DQ7 Xray Lucky Panel Tracker
 
 An OpenCV-based real-time tracking tool for the "Lucky Panel" minigame in Dragon Quest VII. This tool automatically tracks card positions during shuffle sequences and provides a semi-transparent overlay (X-ray vision) of the initial reveal.
+I capture the HDMI output from my Nintendo Switch on my PC using a USB capture device and use it as a video source.
 
 ## Features
 
