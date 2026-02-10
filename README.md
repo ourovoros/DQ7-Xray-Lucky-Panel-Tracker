@@ -16,7 +16,7 @@ An OpenCV-based real-time tracking tool for the "Lucky Panel" minigame in Dragon
 
 Here's a quick demonstration of the tracker in action:
 
-![DQ7 Xray Lucky Panel Tracker Demo](https://github.com/YourUsername/main/assets/panel_tracker_demo.gif?raw=true)
+![DQ7 Xray Lucky Panel Tracker Demo](https://github.com/ourovoros/DQ7-Xray-Lucky-Panel-Tracker/blob/main/assets/panel_tracker_demo.gif?raw=true)
 
 ## Requirements
 
